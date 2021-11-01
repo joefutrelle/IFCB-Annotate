@@ -9,6 +9,7 @@ $(function() {
     let addoptions = $('#add-options');
     let recents = $('#recent-bins');
     let alert = $('#alert');
+    let failed = '';
 
     $('#date-start').datetimepicker();
     $('#date-end').datetimepicker();

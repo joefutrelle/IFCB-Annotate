@@ -1,10 +1,10 @@
-from django.conf.urls import url, include
+from django.conf.urls import url
 from django.contrib import admin
 
 from classify import views
 
 urlpatterns = [
-    url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', admin.site.urls),
     url(r'^$', views.HomePageView.as_view()),
     url(r'^classify/$', views.ClassifyPageView.as_view()),
     url(r'^submitupdates/$', views.SubmitUpdatesPageView.as_view()),

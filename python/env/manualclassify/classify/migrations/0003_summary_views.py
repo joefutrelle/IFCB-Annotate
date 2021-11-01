@@ -4,6 +4,14 @@ from __future__ import unicode_literals
 
 from django.db import migrations
 
+# this is not recommended
+ADD_GROUP_POWER = """
+alter table auth_group add column power integer default 0;
+"""
+
+REMOVE_GROUP_POWER = """
+alter table auth_group drop column power;
+"""
 
 CREATE_VIEWS = """
 create materialized view classify_user_power as
@@ -58,5 +66,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunSQL(ADD_GROUP_POWER, REMOVE_GROUP_POWER),
         migrations.RunSQL(CREATE_VIEWS, DROP_VIEWS)
     ]

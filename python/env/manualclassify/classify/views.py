@@ -5,7 +5,7 @@ import requests
 import iso8601
 import json
 from django.shortcuts import render, redirect
-from django.views.generic import TemplateView
+from django.views.generic import View, TemplateView
 from django.http import HttpResponse
 from django import forms
 from django.contrib.auth import authenticate, login, logout
@@ -153,7 +153,7 @@ class LogoutPageView(TemplateView):
         logout(request)
         return redirect('/login/')
 
-class ClassifyPageView(TemplateView):
+class ClassifyPageView(View):
     def post(self, request, **kwargs):
 
         if not request.user.is_authenticated:
