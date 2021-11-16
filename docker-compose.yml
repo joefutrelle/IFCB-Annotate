@@ -6,7 +6,6 @@ services:
     container_name: annotate
     volumes:
       - annotate_cache:/annotate_cache
-      - ./python/env/manualclassify:/code
       - type: bind
         source: ./django_conf/local_settings.py
         target: /code/classify/local_settings.py
