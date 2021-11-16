@@ -1,0 +1,19 @@
+SECRET_KEY = 'a908oi34yuh5naerdf0v98y3uh4jtergzdf9o87hunjae4gr'
+
+DEBUG = False
+
+ALLOWED_HOSTS = ['localhost']
+
+DEFAULT_DATABASE = {
+    'ENGINE': 'django.db.backends.postgresql',
+    'NAME': 'my_database',
+    'USER': 'my_database_user',
+    'PASSWORD': 'some_password',
+    'HOST': 'localhost',
+    'PORT': ''
+}
+
+INACTIVE_USER_LIMIT = 25
+
+CACHE_DIR = '/annotate_cache'
+
