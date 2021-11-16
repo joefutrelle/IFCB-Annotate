@@ -21,6 +21,7 @@ services:
     container_name: nginx
     volumes:
       - ./nginx_conf:/etc/nginx/conf.d:ro
+      - ${NGINX_LOG_DIR}:/var/log/nginx
       - type: bind
         source: ${SSL_CERT_PATH}
         target: /etc/ssl/server.crt
