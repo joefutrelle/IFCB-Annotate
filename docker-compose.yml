@@ -1,35 +1,62 @@
 version: '3'
 
 services:
-  ifcb_annotate:
+  annotate:
     build: .
-    container_name: ifcb_annotate
+    container_name: annotate
     volumes:
+      - annotate_cache:/annotate_cache
       - ./python/env/manualclassify:/code
+      - type: bind
+        source: ./django_conf/local_settings.py
+        target: /code/classify/local_settings.py
     command: python manage.py runserver 0.0.0.0:8000
-    ports:
-      - 80:8000
     networks:
-      - postgresql_network
+      - postgres_network
+      - nginx_network
     depends_on:
-      - postgresql
+      - postgres
 
-  postgresql:
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    volumes:
+      - ./nginx_conf:/etc/nginx/conf.d:ro
+      - type: bind
+        source: ${SSL_CERT_PATH}
+        target: /etc/ssl/server.crt
+        read_only: true
+      - type: bind
+        source: ${SSL_KEY_PATH}
+        target: /etc/ssl/server.key
+        read_only: true
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - nginx_network
+    depends_on:
+      - annotate
+
+  postgres:
     image: postgres:latest
-    container_name: postgresql
+    container_name: postgres
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     networks:
-      - postgresql_network
+      - postgres_network
     volumes:
       - annotate_db:/var/lib/postgresql/data
       - ./backups:/backups
 
 networks:
-  postgresql_network:
+  postgres_network:
+    driver: bridge
+  nginx_network:
     driver: bridge
 
 volumes:
   annotate_db:
+  annotate_cache:
