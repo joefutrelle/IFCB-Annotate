@@ -1,5 +1,5 @@
-django
+django==3
 requests
-psycopg2
+psycopg2>=2.8,<2.9
 iso8601
 gunicorn
