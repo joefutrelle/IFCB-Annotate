@@ -193,7 +193,7 @@ def convertClassifierName(original):
 def getBinsInRange(start, end, timeseries):
     start = start.strftime('%Y-%m-%dT%H:%M:00')
     end = end.strftime('%Y-%m-%dT%H:%M:00')
-    url = timeseries + '/api/feed/temperature/start/' + start + '/end/' + end
+    url = timeseries + 'api/feed/temperature/start/' + start + '/end/' + end
     bins = []
     with closing(requests.get(url, stream=True)) as r:
         data = json.loads(r.text)
