@@ -65,7 +65,10 @@ class LoginPageView(TemplateView):
                     login(request, user)
                     return redirectResponse("/")
                 else:
-                    return alertResponse("This account needs to be enabled by an administrator, please email epeacock@whoi.edu.")
+                    return alertResponse(
+                        "This account needs to be enabled by an administrator, "
+                        f"please email {settings.USER_REGISTRATION_EMAIL}."
+                    )
             else:
                 return alertResponse("Invalid credentials.")
 
@@ -146,7 +149,9 @@ class RegisterPageView(TemplateView):
         user.is_active = False
         user.is_staff = True
         user.save()
-        return alertResponse("Success! Your account has been registered, but needs to be enabled. Please email epeacock@whoi.edu.", False)
+        return alertResponse((
+                "Success! Your account has been registered, but needs to be enabled. "
+                f"Please email {settings.USER_REGISTRATION_EMAIL}."), False)
 
 class LogoutPageView(TemplateView):
     def get(self, request, **kwargs):
