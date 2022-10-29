@@ -17,3 +17,4 @@ INACTIVE_USER_LIMIT = 25
 
 CACHE_DIR = '/annotate_cache'
 
+USER_REGISTRATION_EMAIL = 'epeacock@whoi.edu'
