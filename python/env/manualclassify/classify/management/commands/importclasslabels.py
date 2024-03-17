@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
-from classify.models import ClassLabel
+from classify.models import ClassLabel, TagLabel
 import requests
 
 class Command(BaseCommand):
@@ -13,15 +13,25 @@ class Command(BaseCommand):
         r = requests.get(autoclass_csv_url)
         r.raise_for_status()
 
-        class_labels = r.text.partition('\n')[0].split(',')
+        labels = r.text.partition('\n')[0].split(',')
 
-        if 'pid' in class_labels:
-            class_labels.remove('pid')
+        if 'pid' in labels:
+            labels.remove('pid')
 
-        class_labels = [c.replace('_', ' ') for c in class_labels]
+        class_labels = list({l.split('_TAG_')[0].replace('_', ' ') for l in labels})
+        class_labels.sort()
+
+        tag_labels = list({l.split('_TAG_')[1].replace('_', ' ') for l in labels if '_TAG_' in l})
+        tag_labels.sort()
 
         for class_label in class_labels:
             if not ClassLabel.objects.filter(name=class_label):
                 self.stdout.write(f'Creating class label {class_label}')
                 class_label_record = ClassLabel(name=class_label)
                 class_label_record.save()
+
+        for tag_label in tag_labels:
+            if not TagLabel.objects.filter(name=tag_label):
+                self.stdout.write(f'Creating tag label {tag_label}')
+                tag_label_record = TagLabel(name=tag_label)
+                tag_label_record.save()
