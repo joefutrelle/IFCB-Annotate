@@ -1,0 +1,40 @@
+#MCFilterToolbox {
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+div.MCSelectLabel {
+    margin-top: 3px;
+    margin-bottom: 3px;
+    margin-left: 5%;
+    display: inline-block;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#MCSetSize {
+    width: 100%;
+}
+
+#MCNumberLoadedLabel {
+    text-align: center;
+    font-weight: bold;
+    color: white;
+    position: relative;
+    top: 50%;
+}
+
+#MCFilterToolbox .bootstrap-select {
+    margin-left: 5% !important;
+}
+
+#MCFilterToolbox .row {
+    margin: 0;
+    display: table;
+}
+
+.col-xs-6 {
+    display: table-cell;
+    float: none;
+}

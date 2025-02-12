@@ -1,0 +1,49 @@
+services:
+  web:
+    build:
+      context: .
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:-db}"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    networks:
+      - ifcb_annotate
+    restart: unless-stopped
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17.2-alpine
+    environment:
+      POSTGRES_HOST: "${POSTGRES_HOST:-db}"
+    env_file:
+      - .env
+    volumes:
+      # To use a folder location on the host
+      - ${POSTGRES_DATA:-/srv/ifcb-annotate}:/var/lib/postgresql/data
+      # To use a docker-managed volume. You must also uncomment the volumes section further down
+      #- ifcb_annotate_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - ifcb_annotate
+    restart: unless-stopped
+    healthcheck:
+      test: "pg_isready -h db"
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
+networks:
+  ifcb_annotate:
+    name: ifcb_annotate
+    driver: bridge
+
+#volumes:
+#  ifcb_annotate_data:

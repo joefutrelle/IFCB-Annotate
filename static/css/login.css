@@ -1,0 +1,161 @@
+html,body {
+	width: 100%;
+	height: 100%;
+}
+
+.row {
+	height: 100%;
+	padding: 0;
+	margin: 0;
+}
+
+.col-md-12 {
+	height: 100%;
+	padding: 0;
+}
+
+.label {
+	font-color: white;
+}
+
+#login-form {
+	width: 300px;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translateY(-50%) translateX(-50%);
+	padding: 20px;
+	padding-top: 10px;
+    padding-bottom: 10px;
+	border: solid 2px black;
+	border-radius: 16px;
+	overflow: hidden;
+	-webkit-animation: fadein 1s; /* Safari, Chrome and Opera > 12.1 */
+    -moz-animation: fadein 1s; /* Firefox < 16 */
+	-ms-animation: fadein 1s; /* Internet Explorer */
+	-o-animation: fadein 1s; /* Opera < 12.1 */
+	animation: fadein 1s;
+}
+
+#form-title {
+	width: 100%;
+	color: white;
+	font-weight: bold;
+	text-align: center;
+	margin-bottom: 10px;
+	font-size: 26px;
+	font-family: 'Roboto';
+}
+
+.btn {
+	width: 80%;
+    margin: auto;
+    margin-bottom: 5px;
+    display: block;
+    font-weight: bold;
+}
+
+.alert {
+    display: table;
+    margin: auto;
+    margin-top: 20px;
+    opacity: 0;
+}
+
+#form-background {
+	height: 110%;
+	width: 110%;
+	position: absolute;
+	top: -5%;
+	left: -5%;
+	background-color: black;
+	opacity: 0.5;
+	z-index: -1;
+	border-radius: 16px;
+}
+
+#dummy-submit {
+    display: none;
+}
+
+#blur {
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	background-image: url("../images/collage-background.png");
+   -webkit-filter: blur(4px);
+   -moz-filter: blur(4px);
+   -o-filter: blur(4px);
+   -ms-filter: blur(4px);
+   filter: blur(4px);
+}
+
+#hidden-register {
+	height: 0;
+	overflow: hidden;
+}
+
+#overlay {
+	position: fixed;
+	width: 100%;
+	height: 100%;
+	background-color: #515151;
+	opacity: 0.5;
+}
+
+#footer-text {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    color: white;
+    font-size: 12px;
+}
+
+#footer-text > a {
+    color: white;
+    text-decoration: underline;
+}
+
+#version-text {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    color: white;
+    font-size: 12px;
+}
+
+#version-text > a {
+    color: white;
+    text-decoration: underline;
+}
+
+/* stackoverflow.com/questions/11679567/using-css-for-fade-in-effect-on-page-load */
+
+@keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Firefox < 16 */
+@-moz-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Safari, Chrome and Opera > 12.1 */
+@-webkit-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Internet Explorer */
+@-ms-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+/* Opera < 12.1 */
+@-o-keyframes fadein {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}

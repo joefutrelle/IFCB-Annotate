@@ -1,0 +1,63 @@
+{% extends 'master.html' %}
+{% load static %}
+
+{% block 'head' %}
+
+    <script src="{% static 'js/jquery-3.3.1.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.min.js' %}"></script>
+    <script src="{% static 'javascript/utils.js' %}"></script>
+    <script src="{% static 'javascript/login.js' %}"></script>
+
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="{% static 'css/login.css' %}"/>
+
+{% endblock %}
+
+{% block 'body' %}
+
+    <div id="blur">
+    </div>
+    
+    <div id="overlay">
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div id="alert" class="alert alert-danger alert-dismissable">
+              <a id="alert-close" href="#" class="close" aria-label="close">&times;</a>
+              <span id="alert-message">alert</span>
+            </div>
+            <form id="login-form" method='post'>
+              {% csrf_token %}
+              <div id="form-background"></div>
+              <div id="form-title">IFCB Annotate</div>
+              <div class="form-group">
+                <input type="username" class="form-control" id="form-username" placeholder="Username" required>
+              </div>
+              <div class="form-group">
+                <input type="password" class="form-control" id="form-password" placeholder="Password" required>
+              </div>
+              <div id="hidden-register">
+                  <div class="form-group">
+                        <input type="password" class="form-control" id="form-confirm" placeholder="Confirm Password">
+                  </div>
+                  <div class="form-group">
+                        <input type="email" class="form-control" id="form-email" placeholder="Email">
+                  </div>
+              </div>
+              <div class="form-row">
+                <div class="col-xs-6">
+                    <button type="button" id="form-submit-1" class="btn btn-primary">Login</button>
+                </div>
+                <div class="col-xs-6">
+                    <button type="button" id="form-submit-2" class="btn btn-secondary">Register</button>
+                </div>
+              </div>
+              <button type="submit" id="dummy-submit"></button>
+            </form>
+            <div id="footer-text">Created at <a href="http://www.whoi.edu">Woods Hole Oceanographic Institution</a></div>
+            <div id="version-text">Version <a href="http://github.com/LouisK130/IFCB-Annotate/commit/{{ version }}">{{ version }}</a></div>
+        </div>
+    </div>
+    
+{% endblock %}
