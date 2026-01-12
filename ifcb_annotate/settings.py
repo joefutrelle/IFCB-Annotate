@@ -126,8 +126,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = "/static"
 STATICFILES_DIRS = [
-    BASE_DIR / "static"
+    BASE_DIR / "static",
 ]
 
 # Default primary key field type
@@ -162,8 +163,17 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+	'web': {
+	    'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
-INACTIVE_USER_LIMIT = os.getenv("INACTIVE_USER_LIMIT")
+INACTIVE_USER_LIMIT = int(os.getenv("INACTIVE_USER_LIMIT", "100"))
 CACHE_DIR = os.getenv("CACHE_DIR")
+
+# REST API configuration for ROI images
+IFCB_REST_API_URL = os.getenv("IFCB_REST_API_URL", "")
+IFCB_API_TOKEN = os.getenv("IFCB_API_TOKEN", "")

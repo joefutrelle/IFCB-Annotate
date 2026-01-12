@@ -415,15 +415,35 @@ function loadImage(pid, entry) {
             updateLoadedCounter();
             return;
         }
-        entry.getData(new zip.BlobWriter('text/plain'), function(data) {
-            target_img_sources[pid] = URL.createObjectURL(data);
-            var img = document.getElementById('MCImg_' + pid); // refresh reference in case this image has been deleted
-            if (img) {
-                img.src = target_img_sources[pid];
-                loaded++;
-                updateLoadedCounter();
-            }
-        });
+
+        // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
+        // Split by underscore - bin is everything before last underscore
+        var lastUnderscore = pid.lastIndexOf('_');
+        var bin_id = pid.substring(0, lastUnderscore);
+        var roi_number = parseInt(pid.substring(lastUnderscore + 1));
+
+        // Build Django proxy URL
+        var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
+
+        console.log(`[${new Date().toISOString()}] Loading image: ${pid} -> ${proxy_url}`);
+
+        // Set image src directly to proxy URL
+        img.src = proxy_url;
+        target_img_sources[pid] = proxy_url;
+
+        // Track when image actually loads
+        img.onload = function() {
+            console.log(`[${new Date().toISOString()}] ✓ Loaded: ${pid}`);
+            loaded++;
+            updateLoadedCounter();
+        };
+
+        // Handle errors with placeholder
+        img.onerror = function() {
+            console.error(`[${new Date().toISOString()}] ✗ Failed: ${pid}`);
+            loaded++;
+            updateLoadedCounter();
+        };
     }
 }
 

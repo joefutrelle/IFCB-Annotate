@@ -6,7 +6,7 @@ import iso8601
 import json
 from django.shortcuts import render, redirect
 from django.views.generic import TemplateView
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseNotFound
 from django import forms
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -274,3 +274,75 @@ class CacheBinPageView(TemplateView):
                     if not utils.isZipDownloaded(bin):
                         utils.downloadZipForBin(bin, timeseries)
         return HttpResponse('')
+
+# DNS cache to avoid repeated lookups
+_dns_cache = {}
+_http_client = None
+
+def resolve_hostname(hostname):
+    """Resolve hostname to IP and cache it (sync version for startup)"""
+    import socket
+    if hostname not in _dns_cache:
+        try:
+            ip = socket.gethostbyname(hostname)
+            _dns_cache[hostname] = ip
+            logger.info(f"Resolved {hostname} to {ip}")
+        except socket.gaierror as e:
+            logger.error(f"Failed to resolve {hostname}: {e}")
+            return None
+    return _dns_cache[hostname]
+
+def get_http_client():
+    """Get or create async HTTP client with connection pooling"""
+    global _http_client
+    if _http_client is None:
+        import httpx
+        _http_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=200, max_keepalive_connections=200),
+            timeout=httpx.Timeout(10.0),
+            verify=False  # Needed when using IP with SSL
+        )
+    return _http_client
+
+async def get_roi_image(request, bin_id, roi_number):
+    """Async proxy to fetch ROI image with bearer token authentication."""
+    import time
+    from urllib.parse import urlparse
+    import urllib3
+
+    # Suppress InsecureRequestWarning
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    start = time.time()
+
+    # Format PID with zero-padded roi_number (5 digits)
+    pid = f"{bin_id}_{int(roi_number):05d}"
+
+    # Parse hostname from base URL and resolve to IP (cached after first lookup)
+    parsed = urlparse(settings.IFCB_REST_API_URL)
+    hostname = parsed.hostname
+    ip = resolve_hostname(hostname)
+
+    if not ip:
+        return HttpResponseNotFound("DNS resolution failed")
+
+    # Build URL using IP instead of hostname
+    url = f"{parsed.scheme}://{ip}{parsed.path}/image/roi/{pid}.png"
+
+    # Add Host header so SSL/TLS works correctly with IP address
+    headers = {
+        'Authorization': f'Bearer {settings.IFCB_API_TOKEN}',
+        'Host': hostname
+    }
+
+    try:
+        before_request = time.time()
+        client = get_http_client()
+        response = await client.get(url, headers=headers)  # Non-blocking async call
+        after_request = time.time()
+        response.raise_for_status()
+        logger.info(f"EXTERNAL API for {pid} took {(after_request-before_request)*1000:.2f}ms, total {(after_request-start)*1000:.2f}ms")
+        return HttpResponse(response.content, content_type='image/png')
+    except Exception as e:
+        logger.error(f"Failed to fetch ROI {pid}: {e}")
+        return HttpResponseNotFound("Image not found")

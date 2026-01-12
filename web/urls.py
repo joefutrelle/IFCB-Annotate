@@ -13,4 +13,5 @@ urlpatterns = [
     re_path(r'cachebins/?', views.CacheBinPageView.as_view()),
     re_path(r'validatebins/?', views.ValidateBinsView.as_view()),
     re_path(r'searchbins/?', views.SearchBinsView.as_view()),
+    path('get_roi_image/<str:bin_id>/<int:roi_number>/', views.get_roi_image, name='get_roi_image'),
 ]
