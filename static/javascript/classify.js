@@ -16,7 +16,7 @@ $.fn.selectpicker.Constructor.DEFAULTS.liveSearchStyle = 'startsWith';
 $(function() {
     var set_size = getCookie('MCSetSize');
     if (set_size == "")
-        set_size = 100;
+        set_size = 50;
     $('#MCSetSize')[0].value = set_size;
 
 
@@ -125,7 +125,7 @@ $(function() {
             if (!disabledElement && loaded == target_counter) {
                 var set = parseInt(document.getElementById('MCSetSize').value);
                 if (set <= 0)
-                    set = 100;
+                    set = 50;
                 loadMore(target_counter+set);
             }
         }
@@ -136,7 +136,7 @@ $(function() {
     setSizeElement.onchange = function() {
         var set = parseInt(this.value);
         if (set <= 0)
-            set = 100;
+            set = 50;
         setCookie('MCSetSize', set, 3650); // 10 years expiration...
     }
     
@@ -505,8 +505,8 @@ function loadMore(n) {
         if (bins.indexOf(bin) == -1)
             bins.push(bin);
         createTile(pid, current_targets[target_counter]['width'], current_targets[target_counter]['height']);
-        // Load image directly via REST API proxy
-        loadImage(pid, null);
+        // Lazy-load image when near viewport
+        observeImage(document.getElementById('MCImg_' + pid), pid);
     }
     if (target_counter != current_targets.length)
         createLoadMoreButton();
@@ -525,7 +525,7 @@ function createLoadMoreButton() {
     btn.onclick = function() {
         var set = parseInt(document.getElementById('MCSetSize').value);
         if (set <= 0)
-            set = 100;
+            set = 50;
         loadMore(target_counter+set);
     }
     div.appendChild(btn);

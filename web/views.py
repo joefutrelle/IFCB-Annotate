@@ -298,22 +298,22 @@ def get_http_client():
     if _http_client is None:
         import httpx
         _http_client = httpx.AsyncClient(
-            limits=httpx.Limits(max_connections=200, max_keepalive_connections=200),
+            limits=httpx.Limits(
+                max_connections=None, 
+                max_keepalive_connections=500  
+            ),
             timeout=httpx.Timeout(10.0),
-            verify=False  # Needed when using IP with SSL
+            verify=False
         )
     return _http_client
 
 async def get_roi_image(request, bin_id, roi_number):
     """Async proxy to fetch ROI image with bearer token authentication."""
-    import time
     from urllib.parse import urlparse
     import urllib3
 
     # Suppress InsecureRequestWarning
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-    start = time.time()
 
     # Format PID with zero-padded roi_number (5 digits)
     pid = f"{bin_id}_{int(roi_number):05d}"
@@ -336,12 +336,9 @@ async def get_roi_image(request, bin_id, roi_number):
     }
 
     try:
-        before_request = time.time()
         client = get_http_client()
-        response = await client.get(url, headers=headers)  # Non-blocking async call
-        after_request = time.time()
+        response = await client.get(url, headers=headers)
         response.raise_for_status()
-        logger.info(f"EXTERNAL API for {pid} took {(after_request-before_request)*1000:.2f}ms, total {(after_request-start)*1000:.2f}ms")
         return HttpResponse(response.content, content_type='image/png')
     except Exception as e:
         logger.error(f"Failed to fetch ROI {pid}: {e}")

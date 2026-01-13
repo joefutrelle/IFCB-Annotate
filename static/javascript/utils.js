@@ -406,6 +406,62 @@ function loadImagesFromZip(bin) {
     });
 }
 
+var lazy_image_observer = null;
+var image_request_queue = [];
+var image_requests_in_flight = 0;
+var MAX_IMAGE_IN_FLIGHT = 8;
+var image_retry_count = {};
+
+function getLazyImageObserver() {
+    if (!('IntersectionObserver' in window)) {
+        return null;
+    }
+    if (!lazy_image_observer) {
+        lazy_image_observer = new IntersectionObserver(function(entries) {
+            for (var i = 0; i < entries.length; i++) {
+                var entry = entries[i];
+                if (entry.isIntersecting || entry.intersectionRatio > 0) {
+                    var img = entry.target;
+                    var pid = img.getAttribute('data-pid');
+                    lazy_image_observer.unobserve(img);
+                    if (pid) {
+                        loadImage(pid, null);
+                    }
+                }
+            }
+        }, { root: null, rootMargin: '250px 0px', threshold: 0.01 });
+    }
+    return lazy_image_observer;
+}
+
+function observeImage(img, pid) {
+    if (!img || !pid) {
+        return;
+    }
+    var observer = getLazyImageObserver();
+    if (!observer) {
+        loadImage(pid, null);
+        return;
+    }
+    img.setAttribute('data-pid', pid);
+    observer.observe(img);
+}
+
+function enqueueImageLoad(pid) {
+    if (!pid) {
+        return;
+    }
+    image_request_queue.push(pid);
+    processImageQueue();
+}
+
+function processImageQueue() {
+    while (image_requests_in_flight < MAX_IMAGE_IN_FLIGHT && image_request_queue.length > 0) {
+        var nextPid = image_request_queue.shift();
+        loadImageNow(nextPid);
+    }
+}
+
 function loadImage(pid, entry) {
     var img = document.getElementById('MCImg_' + pid);
     if (img && !img.src) {
@@ -415,36 +471,91 @@ function loadImage(pid, entry) {
             updateLoadedCounter();
             return;
         }
-
-        // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
-        // Split by underscore - bin is everything before last underscore
-        var lastUnderscore = pid.lastIndexOf('_');
-        var bin_id = pid.substring(0, lastUnderscore);
-        var roi_number = parseInt(pid.substring(lastUnderscore + 1));
-
-        // Build Django proxy URL
-        var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
-
-        console.log(`[${new Date().toISOString()}] Loading image: ${pid} -> ${proxy_url}`);
-
-        // Set image src directly to proxy URL
-        img.src = proxy_url;
-        target_img_sources[pid] = proxy_url;
-
-        // Track when image actually loads
-        img.onload = function() {
-            console.log(`[${new Date().toISOString()}] ✓ Loaded: ${pid}`);
-            loaded++;
-            updateLoadedCounter();
-        };
-
-        // Handle errors with placeholder
-        img.onerror = function() {
-            console.error(`[${new Date().toISOString()}] ✗ Failed: ${pid}`);
-            loaded++;
-            updateLoadedCounter();
-        };
+        enqueueImageLoad(pid);
     }
+}
+
+function loadImageNow(pid) {
+    var img = document.getElementById('MCImg_' + pid);
+    if (!img) {
+        return;
+    }
+    if (img.src) {
+        return;
+    }
+
+    image_requests_in_flight++;
+
+    // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
+    // Split by underscore - bin is everything before last underscore
+    var lastUnderscore = pid.lastIndexOf('_');
+    var bin_id = pid.substring(0, lastUnderscore);
+    var roi_number = parseInt(pid.substring(lastUnderscore + 1));
+
+    // Build Django proxy URL
+    var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
+
+    var loadCompleted = false;
+
+    // Set a timeout to prevent stuck requests from blocking the queue
+    var timeoutId = setTimeout(function() {
+        if (!loadCompleted) {
+            loadCompleted = true;
+            image_requests_in_flight--;
+            var retries = image_retry_count[pid] || 0;
+            if (retries < 3) {
+                image_retry_count[pid] = retries + 1;
+                // Forcefully abort the browser's request by clearing src and handlers
+                img.onload = null;
+                img.onerror = null;
+                img.removeAttribute('src');
+                delete target_img_sources[pid];
+                setTimeout(function() {
+                    image_request_queue.unshift(pid);
+                    processImageQueue();
+                }, 1000);
+                return;
+            }
+            loaded++;
+            updateLoadedCounter();
+            setTimeout(processImageQueue, 0);
+        }
+    }, 2000); // 2 second timeout
+
+    // Track when image actually loads
+    img.onload = function() {
+        if (loadCompleted) return;
+        loadCompleted = true;
+        clearTimeout(timeoutId);
+        image_requests_in_flight--;
+        loaded++;
+        updateLoadedCounter();
+        setTimeout(processImageQueue, 0);
+    };
+
+    // Handle errors with retries
+    img.onerror = function() {
+        if (loadCompleted) return;
+        loadCompleted = true;
+        clearTimeout(timeoutId);
+        image_requests_in_flight--;
+        var retries = image_retry_count[pid] || 0;
+        if (retries < 3) {
+            image_retry_count[pid] = retries + 1;
+            setTimeout(function() {
+                image_request_queue.unshift(pid);
+                processImageQueue();
+            }, 1000);
+            return;
+        }
+        loaded++;
+        updateLoadedCounter();
+        processImageQueue();
+    };
+
+    // Set image src directly to proxy URL after handlers are attached
+    img.src = proxy_url;
+    target_img_sources[pid] = proxy_url;
 }
 
 function keepElementOnScreen(ele) {
