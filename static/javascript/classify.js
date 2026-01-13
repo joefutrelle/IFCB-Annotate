@@ -23,7 +23,6 @@ $(function() {
     let current_bins_ele = document.getElementById('MCCurrentBins');
     for(var n = binIndex; n < binIndex + zips_expected; n++) {
         addRecentBinToCookies(bins[n]);
-        // No longer downloading zips - images load directly from REST API
         let label = document.createElement('p');
         label.innerHTML = bins[n];
         label.style.padding = '0';
