@@ -4,6 +4,8 @@ import logging
 import requests
 import iso8601
 import json
+import urllib3
+from urllib.parse import urlparse
 from django.shortcuts import render, redirect
 from django.views.generic import TemplateView
 from django.http import HttpResponse, HttpResponseNotFound
@@ -309,9 +311,6 @@ def get_http_client():
 
 async def get_roi_image(request, bin_id, roi_number):
     """Async proxy to fetch ROI image with bearer token authentication."""
-    from urllib.parse import urlparse
-    import urllib3
-
     # Suppress InsecureRequestWarning
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
