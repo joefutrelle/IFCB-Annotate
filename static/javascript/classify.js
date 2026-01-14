@@ -16,7 +16,7 @@ $.fn.selectpicker.Constructor.DEFAULTS.liveSearchStyle = 'startsWith';
 $(function() {
     var set_size = getCookie('MCSetSize');
     if (set_size == "")
-        set_size = 50;
+        set_size = 100;
     $('#MCSetSize')[0].value = set_size;
 
 
@@ -124,7 +124,7 @@ $(function() {
             if (!disabledElement && loaded == target_counter) {
                 var set = parseInt(document.getElementById('MCSetSize').value);
                 if (set <= 0)
-                    set = 50;
+                    set = 100;
                 loadMore(target_counter+set);
             }
         }
@@ -135,7 +135,7 @@ $(function() {
     setSizeElement.onchange = function() {
         var set = parseInt(this.value);
         if (set <= 0)
-            set = 50;
+            set = 100;
         setCookie('MCSetSize', set, 3650); // 10 years expiration...
     }
     
@@ -524,7 +524,7 @@ function createLoadMoreButton() {
     btn.onclick = function() {
         var set = parseInt(document.getElementById('MCSetSize').value);
         if (set <= 0)
-            set = 50;
+            set = 100;
         loadMore(target_counter+set);
     }
     div.appendChild(btn);
