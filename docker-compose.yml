@@ -2,23 +2,47 @@ services:
   web:
     build:
       context: .
-    command: python manage.py runserver 0.0.0.0:8000
-    ports:
-      - "8000:8000"
+    command: uvicorn ifcb_annotate.asgi:application --host 0.0.0.0 --port 8000 --limit-concurrency 2000 --backlog 5000
+    network_mode: "host"
     environment:
-      POSTGRES_HOST: "${POSTGRES_HOST:-db}"
+      POSTGRES_HOST: "localhost"
     env_file:
       - .env
     volumes:
       - .:/app
-    networks:
-      - ifcb_annotate
+      - annotate_static:/static
     restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx
+    container_name: nginx
+    volumes:
+      - ./nginx_conf:/etc/nginx/conf.d:ro
+      - annotate_static:/static:ro
+      - ${NGINX_LOG_DIR:-./logs/nginx}:/var/log/nginx
+      - type: bind
+        source: ${SSL_CERT_PATH:-./ssl/server.crt}
+        target: /etc/ssl/server.crt
+        read_only: true
+      - type: bind
+        source: ${SSL_KEY_PATH:-./ssl/server.key}
+        target: /etc/ssl/server.key
+        read_only: true
+    ports:
+      - 8080:80
+      - 8443:443
+    networks:
+      - ifcb_annotate
+    depends_on:
+      - web
+    restart: unless-stopped
 
   db:
     image: postgres:17.2-alpine
+    command: postgres -c max_connections=300
     environment:
       POSTGRES_HOST: "${POSTGRES_HOST:-db}"
     env_file:
@@ -45,5 +69,6 @@ networks:
     name: ifcb_annotate
     driver: bridge
 
-#volumes:
-#  ifcb_annotate_data:
+volumes:
+  annotate_static:
+  
