@@ -29,7 +29,7 @@ if not os.path.exists(AUTO_RESULTS_CACHE_PATH):
     os.makedirs(AUTO_RESULTS_CACHE_PATH, exist_ok=True)
 
 
-def parseBinToTargets(bin, timeseries):
+def parseBinToTargets(bin, timeseries=None):
     targets = {}
 
     t = time.time()
@@ -46,25 +46,34 @@ def parseBinToTargets(bin, timeseries):
         f = open(TARGETS_CACHE_PATH + '/' + bin + '_temp', 'w+')
         f.close()
 
-        logging.info('started downloading: ' + timeseries + bin + '_roisizes')
-        with closing(requests.get(timeseries + bin + '_roisizes', stream=True)) as r:
+        # Build URL for new REST API endpoint
+        url = f"{settings.IFCB_REST_API_URL}/data/rois/{bin}.json"
+        headers = {
+            'Authorization': f'Bearer {settings.IFCB_API_TOKEN}'
+        }
+
+        logging.info(f'started downloading ROI dimensions for {bin}')
+        with closing(requests.get(url, headers=headers, stream=True)) as r:
             if r.status_code == 404:
                 logging.error('Invalid bin: ' + bin)
                 return False
+            if r.status_code in [401, 403]:
+                logging.error(f'Authentication failed for bin {bin}: {r.status_code}')
+                return False
+
             data = json.loads(r.text)
-            n = 0
-            while n < len(data['targetNumber']):
-                pid = bin + '_' + str(data['targetNumber'][n]).zfill(5)
-                # reversed because regardless of how they go through IFCB, on display these values are backwards
+            # Parse new JSON format: {"2": {"roi_id": "...", "width": W, "height": H}, ...}
+            for roi_num, roi_data in data.items():
+                pid = bin + '_' + str(roi_num).zfill(5)
                 targets[pid] = {
-                    'width': data['height'][n],
-                    'height': data['width'][n],
+                    'width': roi_data['width'],
+                    'height': roi_data['height'],
                 }
-                n += 1
+
         with open(TARGETS_CACHE_PATH + '/' + bin + '_temp', 'w') as f:
             json.dump(targets, f)
         os.rename(TARGETS_CACHE_PATH + '/' + bin + '_temp', TARGETS_CACHE_PATH + '/' + bin)
-        logging.info('finished downloading: ' + timeseries + bin + '_roisizes')
+        logging.info(f'finished downloading ROI dimensions for {bin}')
         return targets
 
 
