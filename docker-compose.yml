@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-    command: uvicorn ifcb_annotate.asgi:application --host 0.0.0.0 --port 8000 --limit-concurrency 2000 --backlog 5000
+    command: uvicorn ifcb_annotate.asgi:application --host 0.0.0.0 --port 8000 --limit-concurrency 2000 --workers 16 --backlog 5000
     network_mode: "host"
     environment:
       POSTGRES_HOST: "localhost"
