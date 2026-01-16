@@ -284,15 +284,17 @@ def get_http_client():
         import httpx
         _http_client = httpx.AsyncClient(
             limits=httpx.Limits(
-                max_connections=None,
-                max_keepalive_connections=500
+                max_connections=2000,  # Cap total connections to prevent resource exhaustion
+                max_keepalive_connections=1000  # Keep more connections alive for reuse
             ),
-            timeout=httpx.Timeout(10.0)
+            timeout=httpx.Timeout(5.0)  # Reduce timeout to match JS behavior better
         )
     return _http_client
 
 async def get_roi_image(request, bin_id, roi_number):
     """Async proxy to fetch ROI image with bearer token authentication."""
+    import httpx
+
     # Format PID with zero-padded roi_number (5 digits)
     pid = f"{bin_id}_{int(roi_number):05d}"
 
@@ -307,7 +309,25 @@ async def get_roi_image(request, bin_id, roi_number):
         client = get_http_client()
         response = await client.get(url, headers=headers)
         response.raise_for_status()
-        return HttpResponse(response.content, content_type='image/png')
+        if 'Expires' in response.headers:
+            headers = {'Expires': response.headers['Expires']}
+        else:
+            headers = {}
+        return HttpResponse(response.content, content_type='image/png', headers=headers)
+    except httpx.HTTPStatusError as e:
+        # Pass through the actual status code from upstream API
+        logger.error(f"Failed to fetch ROI {pid}: HTTP {e.response.status_code}")
+        return HttpResponse(
+            e.response.text or f"Upstream error: {e.response.status_code}",
+            status=e.response.status_code,
+            content_type='text/plain'
+        )
+    except httpx.TimeoutException as e:
+        logger.error(f"Timeout fetching ROI {pid}: {e}")
+        return HttpResponse("Gateway timeout", status=504, content_type='text/plain')
+    except httpx.NetworkError as e:
+        logger.error(f"Network error fetching ROI {pid}: {e}")
+        return HttpResponse("Bad gateway", status=502, content_type='text/plain')
     except Exception as e:
-        logger.error(f"Failed to fetch ROI {pid}: {e}")
-        return HttpResponseNotFound("Image not found")
+        logger.error(f"Unexpected error fetching ROI {pid}: {e}")
+        return HttpResponse("Internal server error", status=500, content_type='text/plain')

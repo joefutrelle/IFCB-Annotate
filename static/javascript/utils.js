@@ -407,9 +407,6 @@ function loadImagesFromZip(bin) {
 }
 
 var lazy_image_observer = null;
-var image_request_queue = [];
-var image_requests_in_flight = 0;
-var MAX_IMAGE_IN_FLIGHT = 8;
 var image_retry_count = {};
 
 function getLazyImageObserver() {
@@ -447,21 +444,6 @@ function observeImage(img, pid) {
     observer.observe(img);
 }
 
-function enqueueImageLoad(pid) {
-    if (!pid) {
-        return;
-    }
-    image_request_queue.push(pid);
-    processImageQueue();
-}
-
-function processImageQueue() {
-    while (image_requests_in_flight < MAX_IMAGE_IN_FLIGHT && image_request_queue.length > 0) {
-        var nextPid = image_request_queue.shift();
-        loadImageNow(nextPid);
-    }
-}
-
 function loadImage(pid, entry) {
     var img = document.getElementById('MCImg_' + pid);
     if (img && !img.src) {
@@ -471,8 +453,16 @@ function loadImage(pid, entry) {
             updateLoadedCounter();
             return;
         }
-        enqueueImageLoad(pid);
+        loadImageNow(pid);
     }
+}
+
+function getTimeoutForAttempt(attemptNumber) {
+    var timeouts = [1000, 100, 200, 400, 800];
+    if (attemptNumber < timeouts.length) {
+        return timeouts[attemptNumber];
+    }
+    return null;
 }
 
 function loadImageNow(pid) {
@@ -484,8 +474,6 @@ function loadImageNow(pid) {
         return;
     }
 
-    image_requests_in_flight++;
-
     // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
     // Split by underscore - bin is everything before last underscore
     var lastUnderscore = pid.lastIndexOf('_');
@@ -496,14 +484,15 @@ function loadImageNow(pid) {
     var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
 
     var loadCompleted = false;
+    var retries = image_retry_count[pid] || 0;
+    var timeoutDuration = getTimeoutForAttempt(retries);
 
-    // Set a timeout to prevent stuck requests from blocking the queue
+    // Set a timeout to retry on slow requests
     var timeoutId = setTimeout(function() {
         if (!loadCompleted) {
             loadCompleted = true;
-            image_requests_in_flight--;
-            var retries = image_retry_count[pid] || 0;
-            if (retries < 3) {
+            var nextTimeout = getTimeoutForAttempt(retries + 1);
+            if (nextTimeout !== null) {
                 image_retry_count[pid] = retries + 1;
                 // Forcefully abort the browser's request by clearing src and handlers
                 img.onload = null;
@@ -511,26 +500,22 @@ function loadImageNow(pid) {
                 img.removeAttribute('src');
                 delete target_img_sources[pid];
                 setTimeout(function() {
-                    image_request_queue.unshift(pid);
-                    processImageQueue();
+                    loadImageNow(pid);
                 }, 1000);
                 return;
             }
             loaded++;
             updateLoadedCounter();
-            setTimeout(processImageQueue, 0);
         }
-    }, 2000); // 2 second timeout
+    }, timeoutDuration);
 
     // Track when image actually loads
     img.onload = function() {
         if (loadCompleted) return;
         loadCompleted = true;
         clearTimeout(timeoutId);
-        image_requests_in_flight--;
         loaded++;
         updateLoadedCounter();
-        setTimeout(processImageQueue, 0);
     };
 
     // Handle errors with retries
@@ -538,19 +523,17 @@ function loadImageNow(pid) {
         if (loadCompleted) return;
         loadCompleted = true;
         clearTimeout(timeoutId);
-        image_requests_in_flight--;
         var retries = image_retry_count[pid] || 0;
-        if (retries < 3) {
+        var nextTimeout = getTimeoutForAttempt(retries + 1);
+        if (nextTimeout !== null) {
             image_retry_count[pid] = retries + 1;
             setTimeout(function() {
-                image_request_queue.unshift(pid);
-                processImageQueue();
+                loadImageNow(pid);
             }, 1000);
             return;
         }
         loaded++;
         updateLoadedCounter();
-        processImageQueue();
     };
 
     // Set image src directly to proxy URL after handlers are attached
