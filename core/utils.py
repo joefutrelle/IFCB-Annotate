@@ -29,7 +29,7 @@ if not os.path.exists(AUTO_RESULTS_CACHE_PATH):
     os.makedirs(AUTO_RESULTS_CACHE_PATH, exist_ok=True)
 
 
-def parseBinToTargets(bin, timeseries=None):
+def parseBinToTargets(bin):
     targets = {}
 
     t = time.time()
@@ -87,7 +87,7 @@ def getTargets(bins, timeseries):
             with open(TARGETS_CACHE_PATH + '/' + bin) as f:
                 new_targets = json.load(f)
         else:
-            new_targets = parseBinToTargets(bin, timeseries)
+            new_targets = parseBinToTargets(bin)
         if new_targets == False:
             return False
         targets.update(new_targets)

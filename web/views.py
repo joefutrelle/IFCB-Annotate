@@ -268,7 +268,7 @@ class CacheBinPageView(TemplateView):
                 for bin in bins:
                     logger.info('CACHING ' + bin + '...')
                     if not utils.areTargetsCached(bin):
-                        utils.parseBinToTargets(bin, timeseries)
+                        utils.parseBinToTargets(bin)
                     if not utils.areAutoResultsCached(bin):
                         utils.getAutoResultsForBin(bin, timeseries)
                     if not utils.isZipDownloaded(bin):
