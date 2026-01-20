@@ -407,7 +407,6 @@ function loadImagesFromZip(bin) {
 }
 
 var lazy_image_observer = null;
-var image_retry_count = {};
 
 function getLazyImageObserver() {
     if (!('IntersectionObserver' in window)) {
@@ -457,25 +456,18 @@ function loadImage(pid, entry) {
     }
 }
 
-function getTimeoutForAttempt(attemptNumber) {
-    var timeouts = [1000, 100, 200, 400, 800];
-    if (attemptNumber < timeouts.length) {
-        return timeouts[attemptNumber];
-    }
-    return null;
-}
-
 function loadImageNow(pid) {
     var img = document.getElementById('MCImg_' + pid);
     if (!img) {
         return;
     }
-    if (img.src) {
+
+    // Check if already loaded (either has src or blob URL cached)
+    if (img.src || target_img_sources[pid]) {
         return;
     }
 
     // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
-    // Split by underscore - bin is everything before last underscore
     var lastUnderscore = pid.lastIndexOf('_');
     var bin_id = pid.substring(0, lastUnderscore);
     var roi_number = parseInt(pid.substring(lastUnderscore + 1));
@@ -483,62 +475,68 @@ function loadImageNow(pid) {
     // Build Django proxy URL
     var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
 
-    var loadCompleted = false;
-    var retries = image_retry_count[pid] || 0;
-    var timeoutDuration = getTimeoutForAttempt(retries);
+    // Use fetch to handle 429 responses with Retry-After
+    fetch(proxy_url)
+        .then(function(response) {
+            if (response.status === 429) {
+                // Rate limited - get Retry-After header (in seconds)
+                var retryAfter = parseInt(response.headers.get('Retry-After') || '1');
+                // Add jitter: 50-150% of retry time to avoid thundering herd
+                var jitter = 0.5 + Math.random(); // 0.5 to 1.5
+                var delayMs = retryAfter * 1000 * jitter;
+                console.log('Rate limited for ' + pid + ', retrying in ' + Math.round(delayMs) + 'ms');
 
-    // Set a timeout to retry on slow requests
-    var timeoutId = setTimeout(function() {
-        if (!loadCompleted) {
-            loadCompleted = true;
-            var nextTimeout = getTimeoutForAttempt(retries + 1);
-            if (nextTimeout !== null) {
-                image_retry_count[pid] = retries + 1;
-                // Forcefully abort the browser's request by clearing src and handlers
-                img.onload = null;
-                img.onerror = null;
-                img.removeAttribute('src');
-                delete target_img_sources[pid];
+                // Retry after the specified delay with jitter
                 setTimeout(function() {
                     loadImageNow(pid);
-                }, 1000);
-                return;
+                }, delayMs);
+                return null;
             }
+
+            if (response.status >= 500 && response.status < 600) {
+                // Server error (502, 503, 504, etc) - retry after 2-4 seconds with jitter
+                var jitter = 2 + Math.random() * 2; // 2 to 4 seconds
+                console.log('Server error ' + response.status + ' for ' + pid + ', retrying in ' + Math.round(jitter * 1000) + 'ms');
+
+                setTimeout(function() {
+                    loadImageNow(pid);
+                }, jitter * 1000);
+                return null;
+            }
+
+            if (!response.ok) {
+                // Other error (404, etc) - don't retry, just mark as loaded
+                console.error('Failed to load ' + pid + ': HTTP ' + response.status);
+                loaded++;
+                updateLoadedCounter();
+                return null;
+            }
+
+            return response.blob();
+        })
+        .then(function(blob) {
+            if (!blob) {
+                return; // Was a 429 or error, already handled
+            }
+
+            // Create blob URL and set image
+            var blobUrl = URL.createObjectURL(blob);
+            img.onload = function() {
+                loaded++;
+                updateLoadedCounter();
+            };
+            img.onerror = function() {
+                loaded++;
+                updateLoadedCounter();
+            };
+            img.src = blobUrl;
+            target_img_sources[pid] = blobUrl;
+        })
+        .catch(function(error) {
+            console.error('Error loading ' + pid + ':', error);
             loaded++;
             updateLoadedCounter();
-        }
-    }, timeoutDuration);
-
-    // Track when image actually loads
-    img.onload = function() {
-        if (loadCompleted) return;
-        loadCompleted = true;
-        clearTimeout(timeoutId);
-        loaded++;
-        updateLoadedCounter();
-    };
-
-    // Handle errors with retries
-    img.onerror = function() {
-        if (loadCompleted) return;
-        loadCompleted = true;
-        clearTimeout(timeoutId);
-        var retries = image_retry_count[pid] || 0;
-        var nextTimeout = getTimeoutForAttempt(retries + 1);
-        if (nextTimeout !== null) {
-            image_retry_count[pid] = retries + 1;
-            setTimeout(function() {
-                loadImageNow(pid);
-            }, 1000);
-            return;
-        }
-        loaded++;
-        updateLoadedCounter();
-    };
-
-    // Set image src directly to proxy URL after handlers are attached
-    img.src = proxy_url;
-    target_img_sources[pid] = proxy_url;
+        });
 }
 
 function keepElementOnScreen(ele) {

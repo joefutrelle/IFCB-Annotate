@@ -236,3 +236,25 @@ def binWithoutTimeseries(ts, bin):
     else:
         ts_alt = ts.replace("http", "https")
     return bin.replace(ts_alt, '')
+
+
+def concurrency_limit(max_active, endpoint=None):
+    """
+    Decorator to attach concurrency limits to async views.
+
+    Usage:
+        @concurrency_limit(max_active=50)
+        async def my_view(request):
+            ...
+
+    Args:
+        max_active: Maximum number of concurrent requests allowed
+        endpoint: Optional name for the endpoint (defaults to function name)
+    """
+    def decorator(view_func):
+        view_func._concurrency_limit = {
+            'max_active': max_active,
+            'endpoint': endpoint or view_func.__name__,
+        }
+        return view_func
+    return decorator

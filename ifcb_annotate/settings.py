@@ -163,6 +163,11 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': False,
         },
+        'web': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
@@ -172,3 +177,9 @@ CACHE_DIR = os.getenv("CACHE_DIR")
 # REST API configuration for ROI images
 IFCB_REST_API_URL = os.getenv("IFCB_REST_API_URL", "")
 IFCB_API_TOKEN = os.getenv("IFCB_API_TOKEN", "")
+
+# Redis configuration for concurrency limiting
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+RATE_LIMIT_RETRY_AFTER = int(os.getenv("RATE_LIMIT_RETRY_AFTER", "1"))
+MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))

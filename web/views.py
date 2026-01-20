@@ -275,59 +275,116 @@ class CacheBinPageView(TemplateView):
                         utils.downloadZipForBin(bin, timeseries)
         return HttpResponse('')
 
-_http_client = None
+# Global Redis client for rate limiting
+_redis_client = None
 
-def get_http_client():
-    """Get or create async HTTP client with connection pooling"""
-    global _http_client
-    if _http_client is None:
-        import httpx
-        _http_client = httpx.AsyncClient(
-            limits=httpx.Limits(
-                max_connections=2000,  # Cap total connections to prevent resource exhaustion
-                max_keepalive_connections=1000  # Keep more connections alive for reuse
-            ),
-            timeout=httpx.Timeout(5.0)  # Reduce timeout to match JS behavior better
+def get_redis_client():
+    """Get or create Redis client"""
+    global _redis_client
+    if _redis_client is None:
+        import redis
+        _redis_client = redis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            socket_connect_timeout=2,
+            socket_timeout=2,
         )
-    return _http_client
+    return _redis_client
 
-async def get_roi_image(request, bin_id, roi_number):
-    """Async proxy to fetch ROI image with bearer token authentication."""
-    import httpx
+# Global session for connection pooling
+_requests_session = None
 
+def get_requests_session():
+    """Get or create requests Session with connection pooling"""
+    global _requests_session
+    if _requests_session is None:
+        _requests_session = requests.Session()
+        # Configure connection pool - size to handle concurrent requests
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=20,
+            pool_maxsize=50,
+            max_retries=0
+        )
+        _requests_session.mount('http://', adapter)
+        _requests_session.mount('https://', adapter)
+    return _requests_session
+
+def get_roi_image(request, bin_id, roi_number):
+    """Sync proxy to fetch ROI image with bearer token authentication."""
     # Format PID with zero-padded roi_number (5 digits)
     pid = f"{bin_id}_{int(roi_number):05d}"
 
-    # Build URL using hostname directly
-    url = f"{settings.IFCB_REST_API_URL}/image/roi/{pid}.png"
-
-    headers = {
-        'Authorization': f'Bearer {settings.IFCB_API_TOKEN}'
-    }
+    # Redis rate limiting - use atomic INCR to avoid race conditions
+    logger.info(f"[RATE LIMIT] Starting request for {pid}")
+    redis_client = get_redis_client()
+    rate_limit_key = 'roi_images:active'
+    max_concurrent = settings.MAX_CONCURRENT_REQUESTS
+    acquired = False
 
     try:
-        client = get_http_client()
-        response = await client.get(url, headers=headers)
+        # Atomically increment counter and get new value
+        new_count = redis_client.incr(rate_limit_key)
+        redis_client.expire(rate_limit_key, 30)  # TTL safety
+        logger.info(f"[RATE LIMIT] After INCR: {new_count}/{max_concurrent}")
+
+        # Check if we exceeded the limit
+        if new_count > max_concurrent:
+            # Immediately decrement to roll back
+            redis_client.decr(rate_limit_key)
+            logger.warning(f"[RATE LIMIT] EXCEEDED: {new_count}/{max_concurrent} - returning 429")
+            response = HttpResponse(
+                json.dumps({'error': 'Too many concurrent requests', 'limit': max_concurrent}),
+                status=429,
+                content_type='application/json'
+            )
+            response['Retry-After'] = str(settings.RATE_LIMIT_RETRY_AFTER)
+            return response
+
+        # Successfully acquired slot
+        acquired = True
+        logger.info(f"[RATE LIMIT] Acquired slot, count: {new_count}")
+
+        # Build URL
+        url = f"{settings.IFCB_REST_API_URL}/image/roi/{pid}.png"
+
+        headers = {
+            'Authorization': f'Bearer {settings.IFCB_API_TOKEN}'
+        }
+
+        session = get_requests_session()
+        response = session.get(url, headers=headers, timeout=15.0)
         response.raise_for_status()
+
+        # Pass through Expires header if present
+        response_headers = {}
         if 'Expires' in response.headers:
-            headers = {'Expires': response.headers['Expires']}
-        else:
-            headers = {}
-        return HttpResponse(response.content, content_type='image/png', headers=headers)
-    except httpx.HTTPStatusError as e:
+            response_headers['Expires'] = response.headers['Expires']
+
+        return HttpResponse(response.content, content_type='image/png', headers=response_headers)
+
+    except requests.HTTPError as e:
         # Pass through the actual status code from upstream API
         logger.error(f"Failed to fetch ROI {pid}: HTTP {e.response.status_code}")
-        return HttpResponse(
-            e.response.text or f"Upstream error: {e.response.status_code}",
-            status=e.response.status_code,
-            content_type='text/plain'
-        )
-    except httpx.TimeoutException as e:
+        return HttpResponse('', status=e.response.status_code)
+
+    except requests.Timeout as e:
         logger.error(f"Timeout fetching ROI {pid}: {e}")
-        return HttpResponse("Gateway timeout", status=504, content_type='text/plain')
-    except httpx.NetworkError as e:
+        return HttpResponse('', status=504)
+
+    except requests.RequestException as e:
         logger.error(f"Network error fetching ROI {pid}: {e}")
-        return HttpResponse("Bad gateway", status=502, content_type='text/plain')
+        return HttpResponse('', status=502)
+
     except Exception as e:
         logger.error(f"Unexpected error fetching ROI {pid}: {e}")
-        return HttpResponse("Internal server error", status=500, content_type='text/plain')
+        return HttpResponse('', status=500)
+
+    finally:
+        # Always release slot if we acquired it
+        if acquired:
+            try:
+                new_count = redis_client.decr(rate_limit_key)
+                logger.info(f"[RATE LIMIT] Released slot for {pid}, new count: {new_count}")
+            except Exception as e:
+                logger.error(f"[RATE LIMIT] Failed to decrement counter: {e}")
