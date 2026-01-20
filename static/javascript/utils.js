@@ -481,7 +481,7 @@ function loadImageNow(pid) {
             if (response.status === 429) {
                 // Rate limited - get Retry-After header (in seconds)
                 var retryAfter = parseInt(response.headers.get('Retry-After') || '1');
-                // Add jitter: 50-150% of retry time to avoid thundering herd
+                // Add jitter: 50-150% of retry time to spread out retries
                 var jitter = 0.5 + Math.random(); // 0.5 to 1.5
                 var delayMs = retryAfter * 1000 * jitter;
                 console.log('Rate limited for ' + pid + ', retrying in ' + Math.round(delayMs) + 'ms');
