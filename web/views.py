@@ -312,6 +312,9 @@ def get_requests_session():
 
 def get_roi_image(request, bin_id, roi_number):
     """Sync proxy to fetch ROI image with bearer token authentication."""
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+
     # Format PID with zero-padded roi_number (5 digits)
     pid = f"{bin_id}_{int(roi_number):05d}"
 
