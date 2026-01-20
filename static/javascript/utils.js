@@ -484,7 +484,6 @@ function loadImageNow(pid) {
                 // Add jitter: 50-150% of retry time to spread out retries
                 var jitter = 0.5 + Math.random(); // 0.5 to 1.5
                 var delayMs = retryAfter * 1000 * jitter;
-                console.log('Rate limited for ' + pid + ', retrying in ' + Math.round(delayMs) + 'ms');
 
                 // Retry after the specified delay with jitter
                 setTimeout(function() {
@@ -496,7 +495,6 @@ function loadImageNow(pid) {
             if (response.status >= 500 && response.status < 600) {
                 // Server error (502, 503, 504, etc) - retry after 2-4 seconds with jitter
                 var jitter = 2 + Math.random() * 2; // 2 to 4 seconds
-                console.log('Server error ' + response.status + ' for ' + pid + ', retrying in ' + Math.round(jitter * 1000) + 'ms');
 
                 setTimeout(function() {
                     loadImageNow(pid);

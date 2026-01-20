@@ -316,7 +316,6 @@ def get_roi_image(request, bin_id, roi_number):
     pid = f"{bin_id}_{int(roi_number):05d}"
 
     # Redis rate limiting - use atomic INCR to avoid race conditions
-    logger.info(f"[RATE LIMIT] Starting request for {pid}")
     redis_client = get_redis_client()
     rate_limit_key = 'roi_images:active'
     max_concurrent = settings.MAX_CONCURRENT_REQUESTS
@@ -326,7 +325,6 @@ def get_roi_image(request, bin_id, roi_number):
         # Atomically increment counter and get new value
         new_count = redis_client.incr(rate_limit_key)
         redis_client.expire(rate_limit_key, 30)  # TTL safety
-        logger.info(f"[RATE LIMIT] After INCR: {new_count}/{max_concurrent}")
 
         # Check if we exceeded the limit
         if new_count > max_concurrent:
@@ -343,7 +341,6 @@ def get_roi_image(request, bin_id, roi_number):
 
         # Successfully acquired slot
         acquired = True
-        logger.info(f"[RATE LIMIT] Acquired slot, count: {new_count}")
 
         # Build URL
         url = f"{settings.IFCB_REST_API_URL}/image/roi/{pid}.png"
@@ -384,7 +381,6 @@ def get_roi_image(request, bin_id, roi_number):
         # Always release slot if we acquired it
         if acquired:
             try:
-                new_count = redis_client.decr(rate_limit_key)
-                logger.info(f"[RATE LIMIT] Released slot for {pid}, new count: {new_count}")
+                redis_client.decr(rate_limit_key)
             except Exception as e:
                 logger.error(f"[RATE LIMIT] Failed to decrement counter: {e}")
