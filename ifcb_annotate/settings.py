@@ -170,9 +170,14 @@ INACTIVE_USER_LIMIT = int(os.getenv("INACTIVE_USER_LIMIT", "100"))
 CACHE_DIR = os.getenv("CACHE_DIR")
 
 # REST API configuration for ROI images
-IFCB_REST_API_URL = os.getenv("IFCB_REST_API_URL", "")
-IFCB_API_TOKEN = os.getenv("IFCB_API_TOKEN", "")
+IFCB_REST_API_URL = os.getenv("IFCB_REST_API_URL")
+IFCB_API_TOKEN = os.getenv("IFCB_API_TOKEN")
 
+if not IFCB_REST_API_URL:
+    raise RuntimeError("Environment variable IFCB_REST_API_URL must be set and non-empty.")
+
+if not IFCB_API_TOKEN:
+    raise RuntimeError("Environment variable IFCB_API_TOKEN must be set and non-empty.")
 # Redis configuration for concurrency limiting
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
