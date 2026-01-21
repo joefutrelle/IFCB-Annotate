@@ -183,3 +183,6 @@ REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 RATE_LIMIT_RETRY_AFTER = int(os.getenv("RATE_LIMIT_RETRY_AFTER", "1"))
 MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
+
+# Lazy loading configuration (rootMargin in pixels)
+LAZY_LOAD_ROOT_MARGIN = int(os.getenv("LAZY_LOAD_ROOT_MARGIN", "250"))

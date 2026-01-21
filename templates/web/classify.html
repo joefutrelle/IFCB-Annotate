@@ -96,6 +96,7 @@
     var sortby = '{{ sortby }}';
     var views = {{ views|safe }};
     var binIndex = {{ index }};
+    var lazy_load_root_margin = {{ lazy_load_root_margin }};
     {% for label in classification_labels %}
     classification_labels['{{ label.id }}'] = '{{ label.name }}';
     {% endfor %}

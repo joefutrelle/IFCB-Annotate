@@ -413,6 +413,7 @@ function getLazyImageObserver() {
         return null;
     }
     if (!lazy_image_observer) {
+        var rootMargin = (typeof lazy_load_root_margin !== 'undefined' ? lazy_load_root_margin : 250);
         lazy_image_observer = new IntersectionObserver(function(entries) {
             for (var i = 0; i < entries.length; i++) {
                 var entry = entries[i];
@@ -425,7 +426,7 @@ function getLazyImageObserver() {
                     }
                 }
             }
-        }, { root: null, rootMargin: '250px 0px', threshold: 0.01 });
+        }, { root: null, rootMargin: rootMargin + 'px 0px', threshold: 0.01 });
     }
     return lazy_image_observer;
 }

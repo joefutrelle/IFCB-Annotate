@@ -220,7 +220,8 @@ class ClassifyPageView(TemplateView):
             'shouldImport' : shouldImport,
             'index' : index,
             'sortby' : sortby,
-            'views' : json.dumps(views)
+            'views' : json.dumps(views),
+            'lazy_load_root_margin' : settings.LAZY_LOAD_ROOT_MARGIN
         }
 
         return render(request, 'web/classify.html', JS_values)
