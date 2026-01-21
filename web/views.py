@@ -320,12 +320,14 @@ def get_roi_image(request, bin_id, roi_number):
     pid = f"{bin_id}_{int(roi_number):05d}"
 
     # Redis rate limiting - use atomic INCR to avoid race conditions
-    redis_client = get_redis_client()
+    acquired = False
+    redis_client = None
     rate_limit_key = 'roi_images:active'
     max_concurrent = settings.MAX_CONCURRENT_REQUESTS
-    acquired = False
 
     try:
+        redis_client = get_redis_client()
+
         # Atomically increment counter and get new value
         new_count = redis_client.incr(rate_limit_key)
         redis_client.expire(rate_limit_key, 30)  # TTL safety
@@ -345,7 +347,19 @@ def get_roi_image(request, bin_id, roi_number):
 
         # Successfully acquired slot
         acquired = True
+    except Exception as e:
+        # Redis unavailable - return 503 Service Unavailable
+        logger.error(f"Redis unavailable: {e}")
+        response = HttpResponse(
+            json.dumps({'error': 'Service temporarily unavailable'}),
+            status=503,
+            content_type='application/json'
+        )
+        response['Retry-After'] = '5'
+        return response
 
+    # Fetch image from external API
+    try:
         # Build URL
         url = f"{settings.IFCB_REST_API_URL}/image/roi/{pid}.png"
 
@@ -383,7 +397,7 @@ def get_roi_image(request, bin_id, roi_number):
 
     finally:
         # Always release slot if we acquired it
-        if acquired:
+        if acquired and redis_client:
             try:
                 redis_client.decr(rate_limit_key)
             except Exception as e:
