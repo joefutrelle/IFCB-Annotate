@@ -23,7 +23,6 @@ $(function() {
     let current_bins_ele = document.getElementById('MCCurrentBins');
     for(var n = binIndex; n < binIndex + zips_expected; n++) {
         addRecentBinToCookies(bins[n]);
-        downloadZip(bins[n]);
         let label = document.createElement('p');
         label.innerHTML = bins[n];
         label.style.padding = '0';
@@ -505,12 +504,11 @@ function loadMore(n) {
         if (bins.indexOf(bin) == -1)
             bins.push(bin);
         createTile(pid, current_targets[target_counter]['width'], current_targets[target_counter]['height']);
+        // Lazy-load image when near viewport
+        observeImage(document.getElementById('MCImg_' + pid), pid);
     }
     if (target_counter != current_targets.length)
         createLoadMoreButton();
-    for (var n = 0; n < bins.length; n++) {
-        loadImagesFromZip(bins[n]);
-    }
 }
 
 function createLoadMoreButton() {

@@ -406,6 +406,44 @@ function loadImagesFromZip(bin) {
     });
 }
 
+var lazy_image_observer = null;
+
+function getLazyImageObserver() {
+    if (!('IntersectionObserver' in window)) {
+        return null;
+    }
+    if (!lazy_image_observer) {
+        var rootMargin = (typeof lazy_load_root_margin !== 'undefined' ? lazy_load_root_margin : 250);
+        lazy_image_observer = new IntersectionObserver(function(entries) {
+            for (var i = 0; i < entries.length; i++) {
+                var entry = entries[i];
+                if (entry.isIntersecting || entry.intersectionRatio > 0) {
+                    var img = entry.target;
+                    var pid = img.getAttribute('data-pid');
+                    lazy_image_observer.unobserve(img);
+                    if (pid) {
+                        loadImage(pid, null);
+                    }
+                }
+            }
+        }, { root: null, rootMargin: rootMargin + 'px 0px', threshold: 0.01 });
+    }
+    return lazy_image_observer;
+}
+
+function observeImage(img, pid) {
+    if (!img || !pid) {
+        return;
+    }
+    var observer = getLazyImageObserver();
+    if (!observer) {
+        loadImage(pid, null);
+        return;
+    }
+    img.setAttribute('data-pid', pid);
+    observer.observe(img);
+}
+
 function loadImage(pid, entry) {
     var img = document.getElementById('MCImg_' + pid);
     if (img && !img.src) {
@@ -415,16 +453,89 @@ function loadImage(pid, entry) {
             updateLoadedCounter();
             return;
         }
-        entry.getData(new zip.BlobWriter('text/plain'), function(data) {
-            target_img_sources[pid] = URL.createObjectURL(data);
-            var img = document.getElementById('MCImg_' + pid); // refresh reference in case this image has been deleted
-            if (img) {
-                img.src = target_img_sources[pid];
+        loadImageNow(pid);
+    }
+}
+
+function loadImageNow(pid) {
+    var img = document.getElementById('MCImg_' + pid);
+    if (!img) {
+        return;
+    }
+
+    // Check if already loaded (either has src or blob URL cached)
+    if (img.src || target_img_sources[pid]) {
+        return;
+    }
+
+    // Parse bin_id and roi_number from PID (format: {bin}_{roi:05d})
+    var lastUnderscore = pid.lastIndexOf('_');
+    var bin_id = pid.substring(0, lastUnderscore);
+    var roi_number = parseInt(pid.substring(lastUnderscore + 1));
+
+    // Build Django proxy URL
+    var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
+
+    // Use fetch to handle 429 responses with Retry-After
+    fetch(proxy_url)
+        .then(function(response) {
+            if (response.status === 429) {
+                // Rate limited - get Retry-After header (in seconds)
+                var retryAfter = parseInt(response.headers.get('Retry-After') || '1');
+                // Add jitter: 0-50% additional time to spread out retries
+                var jitter = Math.random() * 0.5; // 0 to 0.5
+                var delayMs = retryAfter * 1000 * (1 + jitter);
+
+                // Retry after the specified delay with jitter
+                setTimeout(function() {
+                    loadImageNow(pid);
+                }, delayMs);
+                return null;
+            }
+
+            if (response.status >= 500 && response.status < 600) {
+                // Server error (502, 503, 504, etc) - retry after 2-4 seconds with jitter
+                var jitter = 2 + Math.random() * 2; // 2 to 4 seconds
+
+                setTimeout(function() {
+                    loadImageNow(pid);
+                }, jitter * 1000);
+                return null;
+            }
+
+            if (!response.ok) {
+                // Other error (404, etc) - don't retry, just mark as loaded
+                console.error('Failed to load ' + pid + ': HTTP ' + response.status);
                 loaded++;
                 updateLoadedCounter();
+                return null;
             }
+
+            return response.blob();
+        })
+        .then(function(blob) {
+            if (!blob) {
+                return; // Was a 429 or error, already handled
+            }
+
+            // Create blob URL and set image
+            var blobUrl = URL.createObjectURL(blob);
+            img.onload = function() {
+                loaded++;
+                updateLoadedCounter();
+            };
+            img.onerror = function() {
+                loaded++;
+                updateLoadedCounter();
+            };
+            img.src = blobUrl;
+            target_img_sources[pid] = blobUrl;
+        })
+        .catch(function(error) {
+            console.error('Error loading ' + pid + ':', error);
+            loaded++;
+            updateLoadedCounter();
         });
-    }
 }
 
 function keepElementOnScreen(ele) {

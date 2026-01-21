@@ -2,3 +2,5 @@ Django==5.1.6
 requests==2.32.3
 psycopg2==2.9.10
 iso8601==2.1.0
+gunicorn==23.0.0
+redis==5.2.1
