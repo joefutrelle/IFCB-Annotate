@@ -13,8 +13,10 @@ class Command(BaseCommand):
         if not dashboard_url.endswith('/'):
             dashboard_url += '/'
 
-        active_datasets = [x[0] for x in
-                    requests.get(f'{dashboard_url}secure/api/dt/datasets').json()['data'] if x[2]]
+        # NOTE: ifcbdb /api/list_datasets should be used here, but its response includes inactive datasets
+        #       change to use it if an active filter gets implemented: https://github.com/WHOIGit/ifcbdb/issues/507
+        active_datasets = list(set([x.replace('dataset=', '').strip() for x in
+                    re.findall(r'dataset=[^\'"\\]*', str(requests.get(f'{dashboard_url}datasets').content))]))
         active_datasets.sort()
 
         for dataset in active_datasets:
