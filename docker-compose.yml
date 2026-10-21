@@ -18,7 +18,7 @@ services:
       - db
 
   db:
-    image: postgres:17.2-alpine
+    image: postgres:17.11-alpine
     environment:
       POSTGRES_HOST: "${POSTGRES_HOST:-db}"
     env_file:
