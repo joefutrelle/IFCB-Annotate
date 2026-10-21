@@ -1,4 +1,6 @@
-Django==5.1.6
-requests==2.32.3
-psycopg2==2.9.10
+Django==6.1.2
+requests==2.34.2
+psycopg[binary]==3.3.6
 iso8601==2.1.0
+gunicorn==26.2.0
+redis==8.1.0
