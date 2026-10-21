@@ -1,4 +1,4 @@
-import psycopg2 as sql
+import psycopg as sql
 import time
 import json
 import uuid
@@ -57,7 +57,7 @@ def getAllDataForBins(bins, targets, timeseries):
     # now that JS wants to order itself, we don't order here
     # query += 'ORDER BY pid, p.power DESC, c.verification_time DESC NULLS LAST, c.time DESC;'
 
-    conn = sql.connect(database=config.db, user=config.username, password=config.password, host=config.server)
+    conn = sql.connect(dbname=config.db, user=config.username, password=config.password, host=config.server)
     cur = conn.cursor()
     cur.execute(query, params)
     rows = cur.fetchall()
@@ -190,7 +190,7 @@ def insertUpdates(updates, user_id, is_classifications, negations, timeseries):
     # loop updates and build the VALUES portion of the query string
     query = query + ') VALUES '
 
-    # now we're looking at user inputs, so we need to pass paramters to psycopg2 instead of inserting directly into the query
+    # now we're looking at user inputs, so we need to pass parameters to psycopg 3 instead of inserting directly into the query
     params = [];
 
     for pid, id in updates.items():
@@ -219,7 +219,7 @@ def insertUpdates(updates, user_id, is_classifications, negations, timeseries):
         query = query + ', negation'
     query = query + ') DO UPDATE SET (verifications, verification_time) = (' + table + '.verifications + 1, now()) RETURNING *;'
 
-    conn = sql.connect(database=config.db, user=config.username, password=config.password, host=config.server)
+    conn = sql.connect(dbname=config.db, user=config.username, password=config.password, host=config.server)
     cur = conn.cursor()
     cur.execute(query, params)
     conn.commit()
@@ -363,7 +363,7 @@ def filterBins(bins, views, sortby):
     else:
         query = query + ' SELECT DISTINCT ON (bin) bin FROM CF;'
 
-    conn = sql.connect(database=config.db, user=config.username, password=config.password, host=config.server)
+    conn = sql.connect(dbname=config.db, user=config.username, password=config.password, host=config.server)
     cur = conn.cursor()
     cur.execute(query, params)
     conn.commit()
