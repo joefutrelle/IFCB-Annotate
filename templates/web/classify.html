@@ -37,8 +37,8 @@
     <div class="col-xs-2">
         <div id='MCToolboxContainer'>
             <div class="form-background"></div>
-              {% include 'filter-toolbox.html' %}
-              {% include 'application-toolbox.html' %}
+              {% include 'web/filter-toolbox.html' %}
+              {% include 'web/application-toolbox.html' %}
               <button type='button' id='MCSubmitUpdates' class="btn btn-primary" onclick='submitUpdates();'>Save Updates</button>
               <div class="row" id="view-details">
                 <div class="col-xs-4">
@@ -86,7 +86,7 @@
 <script>
     var timeseries = '{{ timeseries }}'
     var classifications = {{ classifications|safe }}
-    var csrf_token_form = "{% csrf_token %}"
+    var csrf_token_form = '{% csrf_token %}'
     var csrf_token = '{{ csrf_token }}'
     var bins = {{ bins|safe }}
     var user_id = {{ user_id|safe }}
