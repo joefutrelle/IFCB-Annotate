@@ -1,0 +1,25 @@
+# VCS and CI
+.git
+.gitattributes
+.gitignore
+.github
+
+# Secrets and local config
+.env
+local_settings.py
+
+# Not used by the Django app
+MATLAB
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Python / editor cruft
+**/__pycache__
+**/*.py[cod]
+venv
+.idea
+.DS_Store
+*.log
