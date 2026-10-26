@@ -91,7 +91,7 @@ $(function() {
             }
             btn1.addClass('disabled');
             btn2.addClass('disabled');
-            $.post('/register/', {
+            $.post(BASE_URL + 'register/', {
                 'username' : $('#form-username').val(),
                 'password' : $('#form-password').val(),
                 'email' : $('#form-email').val(),
@@ -130,7 +130,7 @@ $(function() {
             }
             btn1.addClass('disabled');
             btn2.addClass('disabled');
-            $.post('/login/', {
+            $.post(BASE_URL + 'login/', {
                 'username' : $('#form-username').val(),
                 'password' : $('#form-password').val(),
                 'csrfmiddlewaretoken' : getCookie('csrftoken')

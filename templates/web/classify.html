@@ -23,13 +23,13 @@
 
 <div class="row">
     <div id="header">
-        <a id="brand" href="/">
+        <a id="brand" href="{% url 'home' %}">
             <strong>IFCB Annotate</strong>
         </a>
         <div id="top-right-buttons" class="btn-group-horizontal">
             <span>{{ username }}</span>
-            <a href="/admin" id="admin" class="btn btn-info">Admin</a>
-            <a href="/logout" id="logout" class="btn btn-danger">Logout</a>
+            <a href="{% url 'admin:index' %}" id="admin" class="btn btn-info">Admin</a>
+            <a href="{% url 'logout' %}" id="logout" class="btn btn-danger">Logout</a>
         </div>
     </div>
 </div>

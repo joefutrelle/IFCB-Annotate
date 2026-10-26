@@ -382,7 +382,7 @@ function submitUpdates() {
         return;
     disablePage();
     var http = new XMLHttpRequest();
-    http.open('POST', '/submitupdates/', true);
+    http.open('POST', BASE_URL + 'submitupdates/', true);
     http.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
     var params = 'csrfmiddlewaretoken=' + csrf_token +
         '&classifications=' + JSON.stringify(classification_updates) +

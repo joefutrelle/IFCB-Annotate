@@ -368,7 +368,7 @@ function makeUpdatesToClassifications(updates) {
 
 function downloadZip(bin) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/getzip/')
+    xhr.open('POST', BASE_URL + 'getzip/')
     xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
     var params = 'csrfmiddlewaretoken=' + csrf_token + '&bin=' + bin + '&timeseries=' + timeseries;
     xhr.responseType = 'blob';
@@ -474,7 +474,7 @@ function loadImageNow(pid) {
     var roi_number = parseInt(pid.substring(lastUnderscore + 1));
 
     // Build Django proxy URL
-    var proxy_url = `/get_roi_image/${bin_id}/${roi_number}/`;
+    var proxy_url = `${BASE_URL}get_roi_image/${bin_id}/${roi_number}/`;
 
     // Use fetch to handle 429 responses with Retry-After
     fetch(proxy_url)
@@ -627,7 +627,7 @@ function cacheBinsOnServer() {
     var to_cache = bins.slice(binIndex + BATCH_SIZE, binIndex + (BATCH_SIZE * 2)).join(',');
     if (to_cache != '') {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '/cachebins/')
+        xhr.open('POST', BASE_URL + 'cachebins/')
         xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
         var params = 'csrfmiddlewaretoken=' + csrf_token + '&bins=' + to_cache + '&timeseries=' + timeseries;
         xhr.send(params);

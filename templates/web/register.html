@@ -6,11 +6,11 @@
 {% endblock %}
 
 {% block 'body' %}
-<a href = '/login/'>Back to login</a>
+<a href = '{% url 'login' %}'>Back to login</a>
 <div id='MCRegisterDiv'>
   <center>
     <h1 id='MCRegisterHeader'>Manual Classify Registration</h1>
-    <form id="MCRegisterForm" action="/register/" method="post">
+    <form id="MCRegisterForm" action="{% url 'register' %}" method="post">
       {% csrf_token %}
       <p>
 	<label for="MCRegisterUsername">Username:</label>

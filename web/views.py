@@ -5,6 +5,7 @@ import requests
 import iso8601
 import json
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.generic import TemplateView
 from django.http import HttpResponse
 from django import forms
@@ -63,7 +64,7 @@ class LoginPageView(TemplateView):
             if user is not None:
                 if (user.is_active):
                     login(request, user)
-                    return redirectResponse("/")
+                    return redirectResponse(reverse('home'))
                 else:
                     return alertResponse("This account needs to be enabled by an administrator, please email epeacock@whoi.edu.")
             else:
@@ -151,7 +152,7 @@ class RegisterPageView(TemplateView):
 class LogoutPageView(TemplateView):
     def get(self, request, **kwargs):
         logout(request)
-        return redirect('/login/')
+        return redirect('login')
 
 class ClassifyPageView(TemplateView):
     def post(self, request, **kwargs):
@@ -187,7 +188,7 @@ class ClassifyPageView(TemplateView):
 
         if len(bins) == 0 or (len(bins) == 1 and bins[0] == ''):
             request.session['failed'] = 'None of those bins had results in those views.'
-            return redirect('/')
+            return redirect('home')
 
         classList = database.getClassificationList()
         tagList = database.getTagList()
@@ -199,7 +200,7 @@ class ClassifyPageView(TemplateView):
         if not targets:
             request.session['bins'] = bins
             request.session['failed'] = 'One or more of the chosen bins was invalid for the chosen timeseries.'
-            return redirect('/')
+            return redirect('home')
 
         classifications = database.getAllDataForBins(current_bins, targets, ts)
 
