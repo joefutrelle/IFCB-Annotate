@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:17.2-alpine
+    image: postgres:17.11-alpine
     command: postgres -c max_connections=300
     environment:
       POSTGRES_HOST: "${POSTGRES_HOST:-db}"
