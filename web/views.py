@@ -5,6 +5,7 @@ import requests
 import iso8601
 import json
 from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.views.generic import TemplateView
 from django.http import HttpResponse
 from django import forms
@@ -63,7 +64,7 @@ class LoginPageView(TemplateView):
             if user is not None:
                 if (user.is_active):
                     login(request, user)
-                    return redirectResponse("/")
+                    return redirectResponse(reverse('home'))
                 else:
                     return alertResponse("This account needs to be enabled by an administrator, please email epeacock@whoi.edu.")
             else:
@@ -151,7 +152,7 @@ class RegisterPageView(TemplateView):
 class LogoutPageView(TemplateView):
     def get(self, request, **kwargs):
         logout(request)
-        return redirect('/login/')
+        return redirect('login')
 
 class ClassifyPageView(TemplateView):
     def post(self, request, **kwargs):
@@ -187,7 +188,7 @@ class ClassifyPageView(TemplateView):
 
         if len(bins) == 0 or (len(bins) == 1 and bins[0] == ''):
             request.session['failed'] = 'None of those bins had results in those views.'
-            return redirect('/')
+            return redirect('home')
 
         classList = database.getClassificationList()
         tagList = database.getTagList()
@@ -199,7 +200,7 @@ class ClassifyPageView(TemplateView):
         if not targets:
             request.session['bins'] = bins
             request.session['failed'] = 'One or more of the chosen bins was invalid for the chosen timeseries.'
-            return redirect('/')
+            return redirect('home')
 
         classifications = database.getAllDataForBins(current_bins, targets, ts)
 
@@ -220,7 +221,8 @@ class ClassifyPageView(TemplateView):
             'shouldImport' : shouldImport,
             'index' : index,
             'sortby' : sortby,
-            'views' : json.dumps(views)
+            'views' : json.dumps(views),
+            'lazy_load_root_margin' : settings.LAZY_LOAD_ROOT_MARGIN
         }
 
         return render(request, 'web/classify.html', JS_values)
@@ -268,9 +270,136 @@ class CacheBinPageView(TemplateView):
                 for bin in bins:
                     logger.info('CACHING ' + bin + '...')
                     if not utils.areTargetsCached(bin):
-                        utils.parseBinToTargets(bin, timeseries)
+                        utils.parseBinToTargets(bin)
                     if not utils.areAutoResultsCached(bin):
                         utils.getAutoResultsForBin(bin, timeseries)
                     if not utils.isZipDownloaded(bin):
                         utils.downloadZipForBin(bin, timeseries)
         return HttpResponse('')
+
+# Global Redis client for rate limiting
+_redis_client = None
+
+def get_redis_client():
+    """Get or create Redis client"""
+    global _redis_client
+    if _redis_client is None:
+        import redis
+        _redis_client = redis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            db=0,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+    return _redis_client
+
+# Global session for connection pooling
+_requests_session = None
+
+def get_requests_session():
+    """Get or create requests Session with connection pooling"""
+    global _requests_session
+    if _requests_session is None:
+        _requests_session = requests.Session()
+        # Configure connection pool - size to handle concurrent requests
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=20,
+            pool_maxsize=50,
+            max_retries=0
+        )
+        _requests_session.mount('http://', adapter)
+        _requests_session.mount('https://', adapter)
+    return _requests_session
+
+def get_roi_image(request, bin_id, roi_number):
+    """Sync proxy to fetch ROI image with bearer token authentication."""
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+
+    # Format PID with zero-padded roi_number (5 digits)
+    pid = f"{bin_id}_{int(roi_number):05d}"
+
+    # Redis rate limiting - use atomic INCR to avoid race conditions
+    acquired = False
+    redis_client = None
+    rate_limit_key = 'roi_images:active'
+    max_concurrent = settings.MAX_CONCURRENT_REQUESTS
+
+    try:
+        redis_client = get_redis_client()
+
+        # Atomically increment counter and get new value
+        new_count = redis_client.incr(rate_limit_key)
+        redis_client.expire(rate_limit_key, 30)  # TTL safety
+
+        # Check if we exceeded the limit
+        if new_count > max_concurrent:
+            # Immediately decrement to roll back
+            redis_client.decr(rate_limit_key)
+            logger.warning(f"[RATE LIMIT] EXCEEDED: {new_count}/{max_concurrent} - returning 429")
+            response = HttpResponse(
+                json.dumps({'error': 'Too many concurrent requests', 'limit': max_concurrent}),
+                status=429,
+                content_type='application/json'
+            )
+            response['Retry-After'] = str(settings.RATE_LIMIT_RETRY_AFTER)
+            return response
+
+        # Successfully acquired slot
+        acquired = True
+    except Exception as e:
+        # Redis unavailable - return 503 Service Unavailable
+        logger.error(f"Redis unavailable: {e}")
+        response = HttpResponse(
+            json.dumps({'error': 'Service temporarily unavailable'}),
+            status=503,
+            content_type='application/json'
+        )
+        response['Retry-After'] = '5'
+        return response
+
+    # Fetch image from external API
+    try:
+        # Build URL
+        url = f"{settings.IFCB_REST_API_URL}/image/roi/{pid}.png"
+
+        headers = {
+            'Authorization': f'Bearer {settings.IFCB_API_TOKEN}'
+        }
+
+        session = get_requests_session()
+        response = session.get(url, headers=headers, timeout=15.0)
+        response.raise_for_status()
+
+        # Pass through Expires header if present
+        response_headers = {}
+        if 'Expires' in response.headers:
+            response_headers['Expires'] = response.headers['Expires']
+
+        return HttpResponse(response.content, content_type='image/png', headers=response_headers)
+
+    except requests.HTTPError as e:
+        # Pass through the actual status code from upstream API
+        logger.error(f"Failed to fetch ROI {pid}: HTTP {e.response.status_code}")
+        return HttpResponse('', status=e.response.status_code)
+
+    except requests.Timeout as e:
+        logger.error(f"Timeout fetching ROI {pid}: {e}")
+        return HttpResponse('', status=504)
+
+    except requests.RequestException as e:
+        logger.error(f"Network error fetching ROI {pid}: {e}")
+        return HttpResponse('', status=502)
+
+    except Exception as e:
+        logger.error(f"Unexpected error fetching ROI {pid}: {e}")
+        return HttpResponse('', status=500)
+
+    finally:
+        # Always release slot if we acquired it
+        if acquired and redis_client:
+            try:
+                redis_client.decr(rate_limit_key)
+            except Exception as e:
+                logger.error(f"[RATE LIMIT] Failed to decrement counter: {e}")

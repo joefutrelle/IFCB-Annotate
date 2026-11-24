@@ -29,6 +29,14 @@ DEBUG = os.getenv("DJANGO_DEBUG").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "*").split()
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", "*").split()
 
+# Path prefix when served behind a reverse proxy that strips it before
+# forwarding, e.g. Apache "ProxyPass /annotate http://127.0.0.1:8032".
+# Django adds it to generated URLs and redirects. Leave unset at the root.
+FORCE_SCRIPT_NAME = os.getenv("FORCE_SCRIPT_NAME", "").rstrip("/") or None
+
+# The reverse proxy terminates TLS and reports the original scheme here
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 
 # Application definition
 
@@ -125,7 +133,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = f"{FORCE_SCRIPT_NAME or ''}/static/"
+STATIC_ROOT = "/static"
 STATICFILES_DIRS = [
     BASE_DIR / "static"
 ]
@@ -135,7 +144,7 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = '/login/'
+LOGIN_URL = 'login'
 
 LOGGING = {
     'version': 1,
@@ -165,5 +174,23 @@ LOGGING = {
     },
 }
 
-INACTIVE_USER_LIMIT = os.getenv("INACTIVE_USER_LIMIT")
+INACTIVE_USER_LIMIT = int(os.getenv("INACTIVE_USER_LIMIT", "100"))
 CACHE_DIR = os.getenv("CACHE_DIR")
+
+# REST API configuration for ROI images
+IFCB_REST_API_URL = os.getenv("IFCB_REST_API_URL")
+IFCB_API_TOKEN = os.getenv("IFCB_API_TOKEN")
+
+if not IFCB_REST_API_URL:
+    raise RuntimeError("Environment variable IFCB_REST_API_URL must be set and non-empty.")
+
+if not IFCB_API_TOKEN:
+    raise RuntimeError("Environment variable IFCB_API_TOKEN must be set and non-empty.")
+# Redis configuration for concurrency limiting
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+RATE_LIMIT_RETRY_AFTER = int(os.getenv("RATE_LIMIT_RETRY_AFTER", "1"))
+MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
+
+# Lazy loading configuration (rootMargin in pixels)
+LAZY_LOAD_ROOT_MARGIN = int(os.getenv("LAZY_LOAD_ROOT_MARGIN", "250"))

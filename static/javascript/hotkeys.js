@@ -266,7 +266,7 @@ function moveToNextBatch() {
 
 function loadBinIndex(i) {
     let form = document.createElement('form');
-    form.action = '/classify/';
+    form.action = BASE_URL + 'classify/';
     form.method = 'POST';
     form.appendChild(createInput('bins', bins));
     form.appendChild(createInput('timeseries', timeseries));

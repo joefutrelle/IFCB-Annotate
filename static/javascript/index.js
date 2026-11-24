@@ -334,7 +334,7 @@ $(function() {
         }
 
         $.ajax({
-            url : '/validatebins/',
+            url : BASE_URL + 'validatebins/',
             type : 'POST',
             dataType : 'json',
             data : {
@@ -421,7 +421,7 @@ $(function() {
         }
 
         $.ajax({
-            url : '/searchbins/',
+            url : BASE_URL + 'searchbins/',
             type : 'POST',
             dataType : 'json',
             data : {
@@ -616,7 +616,7 @@ $(function() {
         });
 
         var form = document.createElement('form');
-        form.action = '/classify/';
+        form.action = BASE_URL + 'classify/';
         form.method = 'POST';
 
         form.appendChild(createInput('bins', string));
